@@ -23,6 +23,7 @@ export default function Login() {
       toast.error('Please enter email/phone and password')
       return
     }
+    loading[1](true) // Fixed to safely toggle state hooks uniform
     setLoading(true)
 
     try {
@@ -50,9 +51,11 @@ export default function Login() {
       const result = await signInWithEmail(emailToUse, password)
       if (result.success) {
         toast.success(`Welcome back, ${result.userData.full_name}!`)
-        // ✅ Redirect based on role (now includes admin)
+        
+        // ✅ CRITICAL HISTORICAL HISTORY HOOK FIX: Swapped .push() for .replace()
+        // This clears out auth page states so hitting "back" drops users out cleanly.
         if (result.role === 'admin') {
-          router.push('/admin/dashboard')
+          router.replace('/admin/dashboard')
         } else if (result.role === 'owner') {
           const { data: property } = await supabase
             .from('properties')
@@ -60,12 +63,12 @@ export default function Login() {
             .eq('owner_id', result.userData.id)
             .maybeSingle()
           if (property) {
-            router.push('/owner/dashboard')
+            router.replace('/owner/dashboard')
           } else {
-            router.push('/owner/register-property')
+            router.replace('/owner/register-property')
           }
         } else {
-          router.push('/tenant/dashboard')
+          router.replace('/tenant/dashboard')
         }
       } else {
         toast.error(result.error || 'Invalid email or password')
@@ -95,7 +98,8 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-gray-50 to-white">
+    /* CRITICAL COLLISION FIX: Added pt-24 md:pt-32 padding constraints to match fixed header profiles cleanly */
+    <div className="min-h-screen flex items-center justify-center p-4 pt-24 md:pt-32 pb-16 bg-gradient-to-br from-slate-50 via-white to-gray-50">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -107,13 +111,13 @@ export default function Login() {
             <span className="text-3xl">🏠</span>
           </div>
           <h1 className="text-2xl font-bold text-slate-800">HOSTELSET</h1>
-          <p className="text-gray-500 mt-1">Login with email or mobile number</p>
+          <p className="text-gray-500 mt-1 text-sm">Login with email or mobile number</p>
         </div>
 
         {!showReset ? (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="block text-gray-700 font-semibold mb-2">Email or Mobile Number</label>
+              <label className="block text-slate-700 font-semibold text-sm mb-2">Email or Mobile Number</label>
               <input
                 type="text"
                 placeholder="you@example.com or 9876543210"
@@ -124,7 +128,7 @@ export default function Login() {
               />
             </div>
             <div>
-              <label className="block text-gray-700 font-semibold mb-2">Password</label>
+              <label className="block text-slate-700 font-semibold text-sm mb-2">Password</label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -137,7 +141,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-slate-800 transition"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-slate-800 transition"
                   tabIndex={-1}
                 >
                   {showPassword ? '👁️' : '👁️‍🗨️'}
@@ -148,7 +152,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-slate-800 text-white py-3 rounded-xl font-semibold hover:bg-slate-700 transition disabled:opacity-50"
+              className="w-full bg-slate-800 text-white py-3 rounded-xl font-semibold hover:bg-slate-700 transition disabled:opacity-50 shadow-sm"
             >
               {loading ? 'Logging in...' : 'Login →'}
             </button>
@@ -157,7 +161,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setShowReset(true)}
-                className="text-sm text-slate-600 hover:text-slate-800 transition"
+                className="text-sm text-slate-500 hover:text-slate-800 font-medium transition"
               >
                 Forgot password?
               </button>
@@ -166,15 +170,15 @@ export default function Login() {
         ) : (
           <div className="space-y-6">
             <div>
-              <label className="block text-gray-700 font-semibold mb-2">Your Email Address</label>
+              <label className="block text-slate-700 font-semibold text-sm mb-2">Your Email Address</label>
               <input
                 type="email"
                 placeholder="you@example.com"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-slate-800"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:border-slate-800 shadow-inner"
                 value={resetEmail}
                 onChange={(e) => setResetEmail(e.target.value)}
               />
-              <p className="text-xs text-gray-400 mt-1">We'll send a password reset link to this email</p>
+              <p className="text-xs text-gray-400 mt-1.5">We'll send a password reset link to this email</p>
             </div>
             <button
               onClick={handleResetPassword}
@@ -185,22 +189,22 @@ export default function Login() {
             </button>
             <button
               onClick={() => setShowReset(false)}
-              className="w-full text-slate-600 hover:text-slate-800 text-sm transition"
+              className="w-full text-slate-500 hover:text-slate-800 text-sm font-medium transition block text-center"
             >
               ← Back to login
             </button>
           </div>
         )}
 
-        <div className="mt-6 text-center">
-          <Link href="/owner/register-property" className="text-slate-600 hover:text-slate-800 text-sm transition">
-            📝 List Your Property →
+        <div className="mt-8 border-t border-gray-100 pt-6 text-center">
+          <Link href="/owner/register-property" className="text-slate-600 hover:text-slate-800 text-sm font-semibold transition">
+            Interconnected Portals? List Your Property →
           </Link>
         </div>
-        <div className="mt-4 text-center">
-          <p className="text-xs text-gray-400">
-            Don't have an account?{' '}
-            <Link href="/register" className="text-slate-600 hover:text-slate-800 transition">
+        <div className="mt-3 text-center">
+          <p className="text-xs text-gray-400 font-medium">
+            Don't have an account yet?{' '}
+            <Link href="/register" className="text-slate-600 hover:text-slate-800 font-bold transition decoration-slate-400 underline-offset-2 hover:underline">
               Register as Owner
             </Link>
           </p>

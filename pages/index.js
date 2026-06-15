@@ -1,19 +1,10 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion'
+import { motion, useScroll, useTransform } from 'framer-motion'
 
 export default function Home() {
-  const [scrolled, setScrolled] = useState(false)
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
   const { scrollYProgress } = useScroll()
   const opacity = useTransform(scrollYProgress, [0, 0.2], [1, 0.8])
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50)
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
 
   const features = [
     { icon: '💰', title: 'Easy Rent Collection', desc: 'Auto reminders and online payments', color: 'from-green-500 to-emerald-600' },
@@ -38,107 +29,11 @@ export default function Home() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50">
-      {/* MODERN NAVBAR */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-500 ${
-        scrolled 
-          ? 'bg-white/90 backdrop-blur-xl shadow-lg py-3' 
-          : 'bg-transparent py-6'
-      }`}>
-        <div className="container mx-auto px-4 md:px-8">
-          <div className="flex justify-between items-center">
-            {/* Logo */}
-            <Link href="/" className="flex items-center gap-3 group">
-              <motion.div 
-                whileHover={{ rotate: 360, scale: 1.1 }}
-                transition={{ duration: 0.5 }}
-                className="text-3xl"
-              >
-                🏠
-              </motion.div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-                HOSTELSET
-              </span>
-            </Link>
-            
-            {/* DESKTOP NAVIGATION */}
-            <div className="hidden md:flex items-center gap-4">
-              <Link 
-                href="/properties" 
-                className="px-5 py-2.5 rounded-full border-2 border-slate-300 text-slate-700 font-semibold hover:border-slate-800 hover:bg-slate-50 transition-all duration-300 flex items-center gap-2"
-              >
-                <span>🔍</span>
-                Browse Properties
-              </Link>
-              
-              <Link 
-                href="/login" 
-                className="px-5 py-2.5 rounded-full border-2 border-slate-300 text-slate-700 font-semibold hover:border-slate-800 hover:bg-slate-50 transition-all duration-300 flex items-center gap-2"
-              >
-                <span>👤</span>
-                Login
-              </Link>
-              
-              <Link 
-                href="/owner/register-property" 
-                className="bg-gradient-to-r from-slate-800 to-slate-700 text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center gap-2"
-              >
-                <span>✨</span>
-                List Property
-              </Link>
-            </div>
-            
-            {/* Mobile Menu Button */}
-            <button 
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)} 
-              className="md:hidden p-3 rounded-full bg-white/80 backdrop-blur-sm shadow-sm z-50"
-            >
-              <span className="text-2xl">{mobileMenuOpen ? '✕' : '☰'}</span>
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      {/* MOBILE MENU WITH ANIMATION PRESENCE */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-20 left-4 right-4 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl z-40 md:hidden border border-gray-100"
-          >
-            <div className="p-4 flex flex-col gap-3">
-              <Link 
-                href="/properties" 
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-slate-300 text-slate-700 font-semibold hover:bg-gray-50 transition-all duration-300"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <span>🔍</span>
-                Browse Properties
-              </Link>
-              
-              <Link 
-                href="/login" 
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border-2 border-slate-300 text-slate-700 font-semibold hover:bg-gray-50 transition-all duration-300"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <span>👤</span>
-                Login
-              </Link>
-              
-              <Link 
-                href="/owner/register-property" 
-                className="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-slate-800 to-slate-700 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-300"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <span>✨</span>
-                List Property
-              </Link>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="bg-transparent">
+      {/* 
+        NOTE: The fixed Navbar and Footer have been removed from this file 
+        because they are now automatically managed by your global Layout wrapper!
+      */}
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center overflow-hidden">
@@ -324,7 +219,7 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 relative overflow-hidden">
+      <section className="py-24 relative overflow-hidden mb-0">
         <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900" />
         <div className="absolute inset-0 opacity-30">
           <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" />
@@ -361,69 +256,6 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
-
-      {/* UPDATED FOOTER ROUTING DIRECTLY INTO THE FOOTERS FOLDER */}
-      <footer className="bg-white border-t border-gray-100 py-16">
-        <div className="container mx-auto px-4 md:px-8">
-          <div className="grid md:grid-cols-4 gap-12">
-            <div>
-              <div className="flex items-center gap-3 mb-6">
-                <span className="text-3xl">🏠</span>
-                <span className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-                  HOSTELSET
-                </span>
-              </div>
-              <p className="text-gray-500 mb-6 leading-relaxed">
-                Set Your Hostel, Simplify Life. India's most trusted PG and hostel management platform.
-              </p>
-              <div className="flex gap-4">
-                <Link href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-slate-600 transition-all duration-300 hover:scale-110 text-xl">📘</Link>
-                <Link href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-slate-600 transition-all duration-300 hover:scale-110 text-xl">🐦</Link>
-                <Link href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-slate-600 transition-all duration-300 hover:scale-110 text-xl">📷</Link>
-                <Link href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-slate-600 transition-all duration-300 hover:scale-110 text-xl">🔗</Link>
-              </div>
-            </div>
-            
-            {/* Product Column */}
-            <div>
-              <h4 className="font-bold text-slate-800 mb-6 text-lg">Product</h4>
-              <ul className="space-y-3 text-gray-500">
-                <li><Link href="/footers/features" className="hover:text-slate-800 transition-colors duration-200">Features</Link></li>
-                <li><Link href="/owner/register-property" className="hover:text-slate-800 transition-colors duration-200">List Property</Link></li>
-                <li><Link href="/login" className="hover:text-slate-800 transition-colors duration-200">Login</Link></li>
-                <li><Link href="/register" className="hover:text-slate-800 transition-colors duration-200">Register</Link></li>
-                <li><Link href="/properties" className="hover:text-slate-800 transition-colors duration-200">Browse Properties</Link></li>
-              </ul>
-            </div>
-            
-            {/* Company Column */}
-            <div>
-              <h4 className="font-bold text-slate-800 mb-6 text-lg">Company</h4>
-              <ul className="space-y-3 text-gray-500">
-                <li><Link href="/footers/about" className="hover:text-slate-800 transition-colors duration-200">About Us</Link></li>
-                <li><Link href="/footers/contact" className="hover:text-slate-800 transition-colors duration-200">Contact</Link></li>
-                <li><Link href="/footers/blog" className="hover:text-slate-800 transition-colors duration-200">Blog</Link></li>
-                <li><Link href="/footers/careers" className="hover:text-slate-800 transition-colors duration-200">Careers</Link></li>
-              </ul>
-            </div>
-            
-            {/* Legal Column */}
-            <div>
-              <h4 className="font-bold text-slate-800 mb-6 text-lg">Legal</h4>
-              <ul className="space-y-3 text-gray-500">
-                <li><Link href="/footers/privacy-policy" className="hover:text-slate-800 transition-colors duration-200">Privacy Policy</Link></li>
-                <li><Link href="/footers/terms-of-service" className="hover:text-slate-800 transition-colors duration-200">Terms of Service</Link></li>
-                <li><Link href="/footers/cookie-policy" className="hover:text-slate-800 transition-colors duration-200">Cookie Policy</Link></li>
-                <li><Link href="/footers/refund-policy" className="hover:text-slate-800 transition-colors duration-200">Refund Policy</Link></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="border-t border-gray-100 mt-12 pt-8 text-center text-gray-400">
-            <p>&copy; 2026 HOSTELSET. All rights reserved. Made with ❤️ for PG owners</p>
-          </div>
-        </div>
-      </footer>
     </div>
   )
 }

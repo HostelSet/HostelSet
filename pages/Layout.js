@@ -135,7 +135,6 @@ export default function Layout({ children }) {
                 <li><Link href="/owner/register-property" className="hover:text-slate-800 transition">List Property</Link></li>
                 <li><Link href="/login" className="hover:text-slate-800 transition">Login</Link></li>
                 <li><Link href="/register" className="hover:text-slate-800 transition">Register</Link></li>
-                <li><Link href="/properties" className="hover:text-slate-800 transition">Browse Properties</Link></li>
               </ul>
             </div>
             
