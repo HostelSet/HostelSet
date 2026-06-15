@@ -2,6 +2,7 @@ import '../styles/globals.css'
 import { Toaster } from 'react-hot-toast'
 import { useEffect } from 'react'
 import { useRouter } from 'next/router'
+import Layout from './Layout' // Make sure Layout.js is sitting in your pages folder!
 
 export default function App({ Component, pageProps }) {
   const router = useRouter()
@@ -19,6 +20,9 @@ export default function App({ Component, pageProps }) {
     checkSession()
   }, [router.pathname])
 
+  // Determine if the current page belongs to the protected administration dashboards
+  const isDashboardRoute = router.pathname.startsWith('/owner') || router.pathname.startsWith('/tenant')
+
   return (
     <>
       <Toaster 
@@ -30,7 +34,16 @@ export default function App({ Component, pageProps }) {
           error: { iconTheme: { primary: '#ef4444', secondary: '#fff' } },
         }}
       />
-      <Component {...pageProps} />
+      
+      {isDashboardRoute ? (
+        // Render dashboards bare so they can render their own custom sidebars/menus
+        <Component {...pageProps} />
+      ) : (
+        // Public pages, landing page, and all /footers/* paths get the public navbar + footer
+        <Layout>
+          <Component {...pageProps} />
+        </Layout>
+      )}
     </>
   )
 }

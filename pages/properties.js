@@ -88,9 +88,11 @@ export default function PropertiesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-6 py-10">
+    /* CRITICAL FIX: Added pt-24 md:pt-28 to clear the height of your fixed global navbar */
+    <div className="min-h-screen pt-24 md:pt-28 bg-gradient-to-br from-slate-50 via-white to-gray-50">
+      
+      {/* Header Panel */}
+      <div className="bg-white border-b border-gray-100 px-6 py-12 shadow-sm">
         <div className="container mx-auto text-center">
           <motion.h1
             initial={{ opacity: 0, y: -20 }}
@@ -108,17 +110,17 @@ export default function PropertiesPage() {
             Browse properties, check rooms, and apply directly
           </motion.p>
 
-          {/* Search & Filter */}
+          {/* Search & Filter Controls */}
           <div className="max-w-2xl mx-auto flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               placeholder="Search by property name or city..."
-              className="flex-1 px-4 py-3 border border-gray-200 rounded-full focus:outline-none focus:border-slate-800 transition"
+              className="flex-1 px-5 py-3.5 border border-gray-200 rounded-full focus:outline-none focus:border-slate-800 shadow-sm transition"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
             <select
-              className="px-4 py-3 border border-gray-200 rounded-full focus:outline-none focus:border-slate-800 transition"
+              className="px-5 py-3.5 border border-gray-200 rounded-full focus:outline-none focus:border-slate-800 bg-white shadow-sm transition cursor-pointer"
               value={selectedCity}
               onChange={e => setSelectedCity(e.target.value)}
             >
@@ -131,7 +133,7 @@ export default function PropertiesPage() {
         </div>
       </div>
 
-      {/* Property Cards */}
+      {/* Property Cards Layout Container */}
       <div className="container mx-auto px-4 py-12">
         {loading ? (
           <div className="flex justify-center py-20">
@@ -140,7 +142,7 @@ export default function PropertiesPage() {
         ) : filteredProperties.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-5xl mb-4">🏠</div>
-            <p className="text-gray-500">No properties found. Try a different search or city.</p>
+            <p className="text-gray-500 font-medium">No properties found. Try a different search parameter or city.</p>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -151,39 +153,49 @@ export default function PropertiesPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
                 whileHover={{ y: -5 }}
-                className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100"
+                className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col justify-between"
               >
-                {/* Image */}
-                <div className="h-48 bg-gray-100 relative">
-                  {property.firstPhoto ? (
-                    <img
-                      src={property.firstPhoto}
-                      alt={property.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-5xl text-gray-300">
-                      🏢
+                <div>
+                  {/* Media Frame */}
+                  <div className="h-48 bg-gray-100 relative overflow-hidden">
+                    {property.firstPhoto ? (
+                      <img
+                        src={property.firstPhoto}
+                        alt={property.name}
+                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-5xl text-gray-300 select-none">
+                        🏢
+                      </div>
+                    )}
+                    {property.lowestRent && (
+                      <div className="absolute bottom-3 left-3 bg-slate-900/80 backdrop-blur-md px-3 py-1 rounded-full text-xs font-semibold text-white tracking-wide">
+                        From {formatCurrency(property.lowestRent)}/mo
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Body Copy */}
+                  <div className="p-5 pb-0">
+                    <h3 className="text-xl font-bold text-slate-800 mb-1 line-clamp-1">{property.name}</h3>
+                    <p className="text-sm text-gray-400 font-medium mb-4 flex items-center gap-1">
+                      📍 {property.city || 'Location not specified'}
+                    </p>
+                    <div className="flex justify-between items-center text-sm font-semibold text-slate-600 border-t border-gray-50 pt-3 mb-2">
+                      <span>🏠 {property.totalRooms} Rooms Listed</span>
+                      <span className="text-xs px-2.5 py-1 rounded-full bg-slate-50 border border-gray-100">
+                        🛏️ {property.occupiedRooms}/{property.totalRooms} Occupied
+                      </span>
                     </div>
-                  )}
-                  {property.lowestRent && (
-                    <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-semibold text-slate-800">
-                      From {formatCurrency(property.lowestRent)}/mo
-                    </div>
-                  )}
+                  </div>
                 </div>
 
-                {/* Details */}
-                <div className="p-5">
-                  <h3 className="text-xl font-bold text-slate-800 mb-1">{property.name}</h3>
-                  <p className="text-sm text-gray-500 mb-3">{property.city || 'Location not specified'}</p>
-                  <div className="flex justify-between items-center text-sm text-gray-600 mb-4">
-                    <span>🏠 {property.totalRooms} rooms</span>
-                    <span>🛏️ {property.occupiedRooms}/{property.totalRooms} occupied</span>
-                  </div>
+                {/* Button Wrapper */}
+                <div className="p-5 pt-3">
                   <Link
                     href={`/property/${property.id}`}
-                    className="block w-full bg-slate-800 text-white text-center py-2.5 rounded-full font-semibold hover:bg-slate-700 transition"
+                    className="block w-full bg-slate-800 text-white text-center py-2.5 rounded-full font-semibold hover:bg-slate-700 shadow-sm transition"
                   >
                     View Details →
                   </Link>
