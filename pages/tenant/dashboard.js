@@ -40,30 +40,28 @@ export default function TenantDashboard() {
   const [showScreenshotModal, setShowScreenshotModal] = useState(false)
   const [screenshotUrl, setScreenshotUrl] = useState('')
 
-  // ========== UNIVERSAL UPI INTENT (works for all apps, including Google Pay & PhonePe) ==========
+  // Room change request state
+  const [showRoomChangeModal, setShowRoomChangeModal] = useState(false)
+  const [availableRooms, setAvailableRooms] = useState([])
+  const [selectedNewRoom, setSelectedNewRoom] = useState('')
+  const [roomChangeReason, setRoomChangeReason] = useState('')
+  const [pendingRoomChangeRequest, setPendingRoomChangeRequest] = useState(null)
+
+  // Universal UPI intent
   const initiateUPIPayment = (upiId, amount) => {
-    // Remove any spaces and ensure a valid UPI identifier
     const cleanUpi = upiId.trim()
     if (!cleanUpi) {
       toast.error('Owner UPI ID not available')
       return
     }
-
     const payee = encodeURIComponent(cleanUpi)
     const payeeName = encodeURIComponent('HostelSet Rent')
     const amt = encodeURIComponent(amount)
     const cu = encodeURIComponent('INR')
-    // Optional: transaction reference (can help with tracking)
     const tr = encodeURIComponent(`RENT_${Date.now()}`)
     const tn = encodeURIComponent(`Rent payment for ${tenant?.name || 'tenant'}`)
-
-    // Build the standard NPCI UPI intent URL
     const upiUrl = `upi://pay?pa=${payee}&pn=${payeeName}&am=${amt}&cu=${cu}&tr=${tr}&tn=${tn}`
-
-    // Open the UPI intent
     window.location.href = upiUrl
-
-    // Fallback: if the intent doesn't trigger after 2.5 seconds, copy the UPI ID
     setTimeout(() => {
       if (document.hasFocus()) {
         navigator.clipboard.writeText(cleanUpi)
@@ -82,7 +80,7 @@ export default function TenantDashboard() {
     toast.success('UPI Phone Number copied!')
   }
 
-  // ========== Helper functions (unchanged) ==========
+  // Helper functions
   const calculateNextDueDate = () => {
     if (!tenant) return null
     const joinDate = new Date(tenant.move_in_date)
@@ -114,15 +112,71 @@ export default function TenantDashboard() {
     loadTenantData(localStorage.getItem('userId'))
   }
 
-  useEffect(() => {
-    const isLoggedIn = localStorage.getItem('isLoggedIn')
-    const userRole = localStorage.getItem('userRole')
-    const userId = localStorage.getItem('userId')
-    if (!isLoggedIn || userRole !== 'tenant') {
+  // Auth persistence
+  const checkAuthAndRedirect = async () => {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) {
+      localStorage.clear()
       router.push('/login')
-      return
+      return null
     }
-    loadTenantData(userId)
+    const { data: userRecord, error: roleError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    if (roleError || !userRecord) {
+      localStorage.clear()
+      router.push('/login')
+      return null
+    }
+    return { user, role: userRecord.role }
+  }
+
+  useEffect(() => {
+    const init = async () => {
+      const auth = await checkAuthAndRedirect()
+      if (!auth) return
+      if (auth.role !== 'tenant') {
+        router.push('/login')
+        return
+      }
+      localStorage.setItem('userId', auth.user.id)
+      await loadTenantData(auth.user.id)
+    }
+    init()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        localStorage.clear()
+        router.push('/login')
+      } else if (event === 'TOKEN_REFRESHED') {
+        console.log('Session refreshed')
+      }
+    })
+
+    // Leave page warning
+    const handleBeforeUnload = (e) => {
+      if (localStorage.getItem('userId')) {
+        e.preventDefault()
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?'
+        return e.returnValue
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    const handleRouteChange = (url) => {
+      if (localStorage.getItem('userId') && !confirm('You will lose any unsaved data. Do you want to leave the dashboard?')) {
+        throw 'Route change cancelled'
+      }
+    }
+    router.events?.on('routeChangeStart', handleRouteChange)
+
+    return () => {
+      subscription.unsubscribe()
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      router.events?.off('routeChangeStart', handleRouteChange)
+    }
   }, [])
 
   const uploadFile = async (file, prefix) => {
@@ -136,11 +190,13 @@ export default function TenantDashboard() {
   }
 
   const submitPaymentWithProof = async () => {
+    if (isSubmitting) return
     if (!paymentScreenshot) {
       toast.error('Please upload payment screenshot')
       return
     }
     setPaymentLoading(true)
+    setIsSubmitting(true)
     try {
       const screenshotUrl = await uploadFile(paymentScreenshot, 'rent')
       const amount = tenant.pending_amount || tenant.rent_amount
@@ -164,6 +220,7 @@ export default function TenantDashboard() {
       toast.error('Failed to submit payment: ' + error.message)
     } finally {
       setPaymentLoading(false)
+      setIsSubmitting(false)
     }
   }
 
@@ -272,6 +329,15 @@ export default function TenantDashboard() {
         .order('payment_date', { ascending: false })
       setPaymentHistory(paymentsData || [])
 
+      // Load pending room change request
+      const { data: pendingChange } = await supabase
+        .from('room_change_requests')
+        .select('*')
+        .eq('tenant_id', tenantData.id)
+        .eq('status', 'pending')
+        .maybeSingle()
+      setPendingRoomChangeRequest(pendingChange)
+
       const rentStatus = getRentStatus()
       const lastAlertDate = localStorage.getItem('lastTenantAlertDate')
       const today = new Date().toDateString()
@@ -292,6 +358,7 @@ export default function TenantDashboard() {
   }
 
   const updateProfile = async () => {
+    if (isSubmitting) return
     if (!profileForm.name) {
       toast.error('Name is required')
       return
@@ -314,6 +381,7 @@ export default function TenantDashboard() {
   }
 
   const submitComplaint = async () => {
+    if (isSubmitting) return
     if (!complaintForm.title || !complaintForm.description) {
       toast.error('Please fill all fields')
       return
@@ -348,6 +416,7 @@ export default function TenantDashboard() {
   }
 
   const deleteComplaint = async (complaintId) => {
+    if (isSubmitting) return
     if (!confirm('Delete this complaint? This action cannot be undone.')) return
     setIsSubmitting(true)
     try {
@@ -369,6 +438,7 @@ export default function TenantDashboard() {
   }
 
   const requestVacate = async () => {
+    if (isSubmitting) return
     if (!vacateForm.expected_date) {
       toast.error('Please select expected check-out date')
       return
@@ -419,6 +489,7 @@ export default function TenantDashboard() {
   }
 
   const cancelVacateRequest = async () => {
+    if (isSubmitting) return
     if (!existingVacateRequest) return
     const { data: preBooking } = await supabase
       .from('pre_bookings')
@@ -444,9 +515,79 @@ export default function TenantDashboard() {
     }
   }
 
-  const handleLogout = () => {
+  // Room change request functions
+  const fetchAvailableRooms = async () => {
+    try {
+      const { data: allRooms, error } = await supabase
+        .from('rooms')
+        .select('id, room_number, sharing_type, monthly_rent, capacity, current_occupants')
+        .eq('property_id', tenant.property_id)
+        .neq('id', tenant.room_id)
+      if (error) throw error
+
+      const { data: pendingChanges } = await supabase
+        .from('room_change_requests')
+        .select('new_room_id')
+        .eq('property_id', tenant.property_id)
+        .eq('status', 'pending')
+      const pendingRoomIds = pendingChanges?.map(p => p.new_room_id) || []
+
+      const available = allRooms.filter(room => 
+        room.current_occupants < room.capacity && 
+        !pendingRoomIds.includes(room.id)
+      )
+      setAvailableRooms(available)
+    } catch (error) {
+      console.error('Fetch available rooms error:', error)
+      toast.error('Failed to load available rooms')
+    }
+  }
+
+  const openRoomChangeModal = () => {
+    fetchAvailableRooms()
+    setSelectedNewRoom('')
+    setRoomChangeReason('')
+    setShowRoomChangeModal(true)
+  }
+
+  const submitRoomChangeRequest = async () => {
+    if (isSubmitting) return
+    if (!selectedNewRoom) {
+      toast.error('Please select a room')
+      return
+    }
+    if (pendingRoomChangeRequest) {
+      toast.error('You already have a pending room change request')
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      const { error } = await supabase
+        .from('room_change_requests')
+        .insert({
+          tenant_id: tenant.id,
+          property_id: tenant.property_id,
+          old_room_id: tenant.room_id,
+          new_room_id: selectedNewRoom,
+          reason: roomChangeReason || null,
+          status: 'pending',
+          requested_at: new Date().toISOString()
+        })
+      if (error) throw error
+      toast.success('Room change request submitted! Owner will review it.')
+      setShowRoomChangeModal(false)
+      await refreshData()
+    } catch (error) {
+      console.error('Room change request error:', error)
+      toast.error('Failed to submit request: ' + error.message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
     localStorage.clear()
-    toast.success('Logged out successfully')
     router.push('/')
   }
 
@@ -520,12 +661,17 @@ export default function TenantDashboard() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-3 mb-8">
-          <button onClick={() => setShowPaymentModal(true)} className="bg-green-600 text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-green-700 transition">💳 Pay Rent (UPI)</button>
-          <button onClick={() => setShowComplaintModal(true)} className="border-2 border-orange-300 text-orange-700 px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-orange-50 transition">📝 Raise Complaint</button>
-          {existingVacateRequest ? (
-            <button onClick={cancelVacateRequest} className="border-2 border-yellow-500 text-yellow-700 px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-yellow-50 transition">❌ Cancel Vacate Request</button>
+          <button onClick={() => setShowPaymentModal(true)} disabled={isSubmitting} className="bg-green-600 text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-green-700 transition disabled:opacity-50">💳 Pay Rent (UPI)</button>
+          <button onClick={() => setShowComplaintModal(true)} disabled={isSubmitting} className="border-2 border-orange-300 text-orange-700 px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-orange-50 transition disabled:opacity-50">📝 Raise Complaint</button>
+          {!pendingRoomChangeRequest ? (
+            <button onClick={openRoomChangeModal} disabled={isSubmitting} className="border-2 border-blue-300 text-blue-700 px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-blue-50 transition disabled:opacity-50">🔄 Request Room Change</button>
           ) : (
-            <button onClick={() => setShowVacateModal(true)} className="border-2 border-red-300 text-red-700 px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-red-50 transition">🚪 Request Vacate</button>
+            <button disabled className="border-2 border-gray-300 text-gray-500 px-6 py-2.5 rounded-full text-sm font-semibold cursor-not-allowed">⏳ Room Change Pending</button>
+          )}
+          {existingVacateRequest ? (
+            <button onClick={cancelVacateRequest} disabled={isSubmitting} className="border-2 border-yellow-500 text-yellow-700 px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-yellow-50 transition disabled:opacity-50">❌ Cancel Vacate Request</button>
+          ) : (
+            <button onClick={() => setShowVacateModal(true)} disabled={isSubmitting} className="border-2 border-red-300 text-red-700 px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-red-50 transition disabled:opacity-50">🚪 Request Vacate</button>
           )}
         </div>
 
@@ -545,7 +691,7 @@ export default function TenantDashboard() {
         {/* Overview Tab */}
         {activeTab === 'overview' && (
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl border p-6"><h3 className="font-semibold mb-4">🏠 Your Room Details</h3><div className="space-y-3"><div className="flex justify-between py-2 border-b"><span className="text-gray-500">Room Number:</span><span>{room?.room_number}</span></div><div className="flex justify-between py-2 border-b"><span>Sharing Type:</span><span>{getSharingDetails(room?.sharing_type)?.label}</span></div><div className="flex justify-between py-2 border-b"><span>Monthly Rent:</span><span className="text-green-600 font-semibold">{formatCurrency(room?.monthly_rent)}</span></div><div className="flex justify-between py-2 border-b"><span>Move-in Date:</span><span>{formatDate(tenant?.move_in_date)}</span></div><div className="flex justify-between py-2 border-b"><span>Status:</span><span className={`px-2 py-1 rounded-full text-xs ${tenant?.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{tenant?.status === 'active' ? 'Active' : 'Notice Period'}</span></div></div></div>
+            <div className="bg-white rounded-xl border p-6"><h3 className="font-semibold mb-4">🏠 Your Room Details</h3><div className="space-y-3"><div className="flex justify-between py-2 border-b"><span className="text-gray-500">Room Number:</span><span>{room?.room_number}</span></div><div className="flex justify-between py-2 border-b"><span>Sharing Type:</span><span>{getSharingDetails(room?.sharing_type)?.label}</span></div><div className="flex justify-between py-2 border-b"><span>Monthly Rent:</span><span className="text-green-600 font-semibold">{formatCurrency(room?.monthly_rent)}</span></div><div className="flex justify-between py-2 border-b"><span>Move-in Date:</span><span>{formatDate(tenant?.move_in_date)}</span></div><div className="flex justify-between py-2 border-b"><span>Status:</span><span className={`px-2 py-1 rounded-full text-xs ${tenant?.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{tenant?.status === 'active' ? 'Active' : 'Notice Period'}</span></div>{pendingRoomChangeRequest && (<div className="mt-3 p-2 bg-blue-50 rounded-lg text-sm text-blue-700">⏳ Room change request pending approval to Room {pendingRoomChangeRequest.new_room_id}.</div>)}</div></div>
             <div className="bg-white rounded-xl border p-6"><h3 className="font-semibold mb-4">🏢 Property Information</h3><div className="space-y-3"><div className="flex justify-between py-2 border-b"><span className="text-gray-500">Property Name:</span><span>{property?.name}</span></div><div className="flex justify-between py-2 border-b"><span>Address:</span><span className="text-right">{property?.address}, {property?.city}</span></div><div className="flex justify-between py-2 border-b"><span>Owner Name:</span><span>{owner?.full_name || 'Not provided'}</span></div><div className="flex justify-between py-2 border-b"><span>Owner Contact:</span><span className="font-medium">{property?.contact_number || owner?.phone || 'Not provided'}</span></div></div></div>
           </div>
         )}
@@ -567,7 +713,7 @@ export default function TenantDashboard() {
           <div className="space-y-4">
             {complaints.map(complaint => (
               <div key={complaint.id} className="bg-white rounded-xl border p-5 shadow-sm relative group">
-                <button onClick={() => deleteComplaint(complaint.id)} className="absolute top-4 right-4 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition">🗑️ Delete</button>
+                <button onClick={() => deleteComplaint(complaint.id)} disabled={isSubmitting} className="absolute top-4 right-4 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition disabled:opacity-50">🗑️ Delete</button>
                 <div className="flex justify-between items-start mb-3 pr-8">
                   <div><div className="flex items-center gap-2 mb-2"><h3 className="font-semibold">{complaint.title}</h3><span className={`px-2 py-1 rounded-full text-xs ${complaint.priority === 'high' ? 'bg-red-100 text-red-700' : complaint.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>{complaint.priority}</span></div><p className="text-gray-600">{complaint.description}</p>{complaint.admin_response && (<div className="mt-3 p-3 bg-green-50 rounded-lg"><p className="text-xs text-green-600 font-semibold mb-1">Owner's Response:</p><p className="text-sm text-gray-700">{complaint.admin_response}</p></div>)}</div>
                   <span className={`px-2 py-1 rounded-full text-xs ${complaint.status === 'open' ? 'bg-red-100 text-red-700' : complaint.status === 'in_progress' ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}`}>{complaint.status === 'open' ? 'Open' : complaint.status === 'in_progress' ? 'In Progress' : 'Resolved'}</span>
@@ -636,7 +782,7 @@ export default function TenantDashboard() {
         )}
       </div>
 
-      {/* Payment Modal – with universal UPI intent */}
+      {/* Payment Modal */}
       <AnimatePresence>
         {showPaymentModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowPaymentModal(false)}>
@@ -674,7 +820,7 @@ export default function TenantDashboard() {
                     <div><label className="block text-sm font-semibold mb-1">UPI Transaction ID (optional)</label><input type="text" className="w-full px-4 py-3 border rounded-xl" value={paymentTransactionId} onChange={e => setPaymentTransactionId(e.target.value)} /></div>
                     <div className="mt-3"><label className="block text-sm font-semibold mb-1">Payment Screenshot *</label><input type="file" accept="image/*" onChange={e => { if (e.target.files[0]) setPaymentScreenshot(e.target.files[0]) }} className="w-full" /></div>
                     <div className="bg-yellow-50 p-3 rounded-lg text-sm text-yellow-800 mt-3">After payment, upload the screenshot and submit. Owner will verify.</div>
-                    <button onClick={submitPaymentWithProof} disabled={paymentLoading} className="w-full bg-slate-800 text-white py-3 rounded-xl font-semibold mt-4 disabled:opacity-50">{paymentLoading ? 'Submitting...' : 'Submit Payment Proof'}</button>
+                    <button onClick={submitPaymentWithProof} disabled={paymentLoading || isSubmitting} className="w-full bg-slate-800 text-white py-3 rounded-xl font-semibold mt-4 disabled:opacity-50">{paymentLoading ? 'Submitting...' : 'Submit Payment Proof'}</button>
                     <button onClick={() => setShowPaymentModal(false)} className="w-full text-center text-gray-500 text-sm mt-3">Cancel</button>
                   </div>
                 </div>
@@ -747,6 +893,48 @@ export default function TenantDashboard() {
                 </div>
               )}
               <button onClick={() => setShowProfileModal(false)} className="w-full mt-4 py-2 text-gray-500">Close</button>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Room Change Request Modal */}
+      <AnimatePresence>
+        {showRoomChangeModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowRoomChangeModal(false)}>
+            <div className="bg-white rounded-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-2xl font-bold mb-4">🔄 Request Room Change</h2>
+              <p className="text-sm text-gray-600 mb-4">Select a new room from the same property. Owner will review and approve.</p>
+              <div className="space-y-4">
+                <select 
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl"
+                  value={selectedNewRoom}
+                  onChange={(e) => setSelectedNewRoom(e.target.value)}
+                >
+                  <option value="">Select a room</option>
+                  {availableRooms.map(room => (
+                    <option key={room.id} value={room.id}>
+                      Room {room.room_number} - {getSharingDetails(room.sharing_type)?.label} - ₹{formatCurrency(room.monthly_rent)}/month ({room.capacity - room.current_occupants} slots available)
+                    </option>
+                  ))}
+                </select>
+                <textarea
+                  placeholder="Reason for room change (optional)"
+                  rows="3"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl"
+                  value={roomChangeReason}
+                  onChange={(e) => setRoomChangeReason(e.target.value)}
+                />
+                <div className="bg-yellow-50 p-3 rounded-lg text-sm text-yellow-800">
+                  ⚠️ Your request will be sent to the owner for approval. You will be notified when the owner responds.
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button onClick={submitRoomChangeRequest} disabled={isSubmitting || !selectedNewRoom} className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-semibold disabled:opacity-50">
+                    {isSubmitting ? 'Submitting...' : 'Submit Request'}
+                  </button>
+                  <button onClick={() => setShowRoomChangeModal(false)} className="flex-1 border-2 border-gray-300 text-gray-700 py-3 rounded-xl font-semibold">Cancel</button>
+                </div>
+              </div>
             </div>
           </div>
         )}
