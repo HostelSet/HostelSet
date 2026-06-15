@@ -60,6 +60,9 @@ export default function PropertyDetail() {
   const [prebookCheckingPhone, setPrebookCheckingPhone] = useState(false)
   const [prebookCheckingEmail, setPrebookCheckingEmail] = useState(false)
 
+  // To disable pre‑book button if room already has an approved pre‑booking
+  const [approvedPrebookings, setApprovedPrebookings] = useState({})
+
   useEffect(() => {
     if (id) loadData()
   }, [id])
@@ -105,6 +108,7 @@ export default function PropertyDetail() {
       }
 
       await loadVacateInfo(propertyData)
+      await loadApprovedPrebookings(propertyData)
     } catch (error) {
       console.error('Error:', error)
     } finally {
@@ -129,6 +133,18 @@ export default function PropertyDetail() {
       }
     })
     setVacateInfo(info)
+  }
+
+  const loadApprovedPrebookings = async (propertyData) => {
+    if (!propertyData) return
+    const { data: approved } = await supabase
+      .from('pre_bookings')
+      .select('room_id')
+      .eq('property_id', propertyData.id)
+      .eq('status', 'approved')
+    const map = {}
+    approved?.forEach(p => { map[p.room_id] = true })
+    setApprovedPrebookings(map)
   }
 
   const calculateTotalAmount = () => {
@@ -160,7 +176,7 @@ export default function PropertyDetail() {
     return publicUrl
   }
 
-  // ========== Apply Form Validation ==========
+  // ========== Apply Form Validation (blocks existing users) ==========
   const validatePhone = async (phone) => {
     const cleanPhone = cleanPhoneNumber(phone)
     if (!cleanPhone || cleanPhone.length !== 10) {
@@ -388,7 +404,7 @@ export default function PropertyDetail() {
     return null
   }
 
-  // ========== Regular Application Flow ==========
+  // ========== Regular Application Flow (no password reset email) ==========
   const submitApplication = async () => {
     if (!applyForm.name || !applyForm.phone || !applyForm.email) {
       toast.error('Please fill all required fields (Name, Phone, Email)')
@@ -526,9 +542,7 @@ export default function PropertyDetail() {
           }
         }
 
-        await supabase.auth.resetPasswordForEmail(applyForm.email, {
-          redirectTo: `${window.location.origin}/reset-password`,
-        }).catch(e => console.warn('Reset email not sent:', e))
+        // ❌ NO PASSWORD RESET EMAIL HERE – will be sent by owner on approval
       }
 
       const totalAmount = calculateTotalAmount()
@@ -586,12 +600,12 @@ export default function PropertyDetail() {
       }).eq('id', selectedRoom)
 
       toast.success(
-        `🎉 Account created! Check your email (${applyForm.email}) to set your password.`,
-        { duration: 10000 }
+        `🎉 Application submitted! Once the owner approves, you will receive an email to set your password.`,
+        { duration: 8000 }
       )
 
       setShowPaymentModal(false)
-      setTimeout(() => router.push('/login'), 10000)
+      setTimeout(() => router.push('/login'), 8000)
     } catch (error) {
       console.error('Payment submission error:', error)
       toast.error('Something went wrong: ' + error.message)
@@ -600,7 +614,7 @@ export default function PropertyDetail() {
     }
   }
 
-  // ========== PRE‑BOOKING FLOW (No login required, creates user during payment) ==========
+  // ========== PRE‑BOOKING FLOW (no login required) ==========
   const openPrebookModal = (roomId, vacateDate) => {
     setPrebookRoomId(roomId)
     setPrebookForm({
@@ -646,14 +660,12 @@ export default function PropertyDetail() {
       toast.error('Room not selected')
       return
     }
-    // Validate phone/email against existing users
     const phoneOk = await validatePrebookPhone(prebookForm.phone)
     const emailOk = await validatePrebookEmail(prebookForm.email)
     if (!phoneOk || !emailOk) {
       toast.error('Please correct the errors before proceeding')
       return
     }
-    // Close the form modal and open payment modal
     setShowPrebookModal(false)
     setShowPrebookPaymentModal(true)
   }
@@ -666,50 +678,14 @@ export default function PropertyDetail() {
     const cleanPhone = cleanPhoneNumber(prebookForm.phone)
     setPrebookPaymentSubmitting(true)
     try {
-      // 1. Create or get user account
-      let userId
-      const existingUser = await findExistingUser(cleanPhone, prebookForm.email)
-      
-      if (existingUser) {
-        userId = existingUser.id
-        await supabase.from('users').update({
-          full_name: prebookForm.name,
-          email: prebookForm.email,
-          phone: cleanPhone,
-        }).eq('id', userId)
-      } else {
-        const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).charAt(0).toUpperCase()
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: prebookForm.email,
-          password: tempPassword,
-          options: { data: { full_name: prebookForm.name, role: 'tenant', phone: cleanPhone } }
-        })
-        if (authError) throw authError
-        userId = authData.user.id
-        await supabase.from('users').insert({
-          id: userId,
-          email: prebookForm.email,
-          full_name: prebookForm.name,
-          phone: cleanPhone,
-          role: 'tenant',
-          is_active: true
-        })
-        // Send password reset email
-        await supabase.auth.resetPasswordForEmail(prebookForm.email, {
-          redirectTo: `${window.location.origin}/reset-password`,
-        }).catch(e => console.warn('Reset email not sent:', e))
-      }
-
-      // 2. Upload documents
       const idProofUrl = await uploadFile(prebookIdProof, 'prebook_id')
       const photoUrl = await uploadFile(prebookPhoto, 'prebook_photo')
       const screenshotUrl = await uploadFile(prebookPaymentScreenshot, 'prebook_pay')
 
-      // 3. Insert pre‑booking record with valid user_id
       const prebookData = {
         property_id: id,
         room_id: prebookRoomId,
-        user_id: userId,
+        user_id: null,
         name: prebookForm.name.trim(),
         phone: cleanPhone,
         email: prebookForm.email.trim(),
@@ -726,8 +702,7 @@ export default function PropertyDetail() {
       }
       const { error } = await supabase.from('pre_bookings').insert(prebookData)
       if (error) throw error
-      
-      toast.success('Pre‑booking request sent! Owner will verify payment and approve. Check your email to set password.')
+      toast.success('Pre‑booking request sent! Owner will verify payment and approve.')
       setShowPrebookPaymentModal(false)
       setPrebookForm({ name: '', phone: '', email: '', move_in_date: '', message: '' })
       setPrebookRoomId(null)
@@ -781,6 +756,9 @@ export default function PropertyDetail() {
     )
   }
 
+  // ---- NEW: Check if property has any rooms ----
+  const hasNoRooms = rooms.length === 0
+
   const isApplyFormValid = applyForm.name && phoneValid && emailValid && idProof && photo
   const isPrebookFormValid = prebookForm.name && prebookPhoneValid && prebookEmailValid && prebookIdProof && prebookPhoto && agreeTerms && prebookForm.move_in_date
 
@@ -794,7 +772,7 @@ export default function PropertyDetail() {
               <span className="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">HOSTELSET</span>
             </Link>
             <div className="flex items-center gap-4">
-              <Link href="/login" className="text-gray-600 hover:text-slate-800 transition">Login</Link>
+              <Link href="/login" className="text-gray-600 hover:text-slate-800 transition">Login / Signup</Link>
               <Link href="/owner/register-property" className="bg-slate-800 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-slate-700 transition shadow-md">
                 List Property
               </Link>
@@ -868,74 +846,85 @@ export default function PropertyDetail() {
 
         {/* Rooms Tab */}
         {activeTab === 'rooms' && (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {rooms.map((room) => {
-              const sharing = getSharingDetails(room.sharing_type)
-              const isAvailable = room.current_occupants < room.capacity
-              const availableSlots = room.capacity - room.current_occupants
-              const roomVacate = vacateInfo[room.id]
-              const isPrebookable = roomVacate && roomVacate.daysLeft > 0
-              return (
-                <motion.div
-                  key={room.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className={`group bg-white rounded-2xl border shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden ${
-                    isAvailable ? 'border-green-200 hover:border-green-400' : (isPrebookable ? 'border-blue-200 hover:border-blue-400' : 'border-gray-200 opacity-70')
-                  }`}
-                >
-                  <div className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="text-2xl font-bold text-slate-800">Room {room.room_number}</h3>
-                        <p className="text-sm text-gray-500 mt-1">{sharing.label} {sharing.icon}</p>
+          <>
+            {hasNoRooms ? (
+              <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-12 text-center border border-gray-100">
+                <div className="text-5xl mb-4">🏠</div>
+                <h3 className="text-xl font-semibold text-slate-800 mb-2">No Rooms Available</h3>
+                <p className="text-gray-500">This property currently has no rooms listed. Please check back later.</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {rooms.map((room) => {
+                  const sharing = getSharingDetails(room.sharing_type)
+                  const isAvailable = room.current_occupants < room.capacity
+                  const availableSlots = room.capacity - room.current_occupants
+                  const roomVacate = vacateInfo[room.id]
+                  // Pre‑bookable only if vacate exists, days left > 0, AND no approved pre‑booking
+                  const isPrebookable = roomVacate && roomVacate.daysLeft > 0 && !approvedPrebookings[room.id]
+                  return (
+                    <motion.div
+                      key={room.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className={`group bg-white rounded-2xl border shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden ${
+                        isAvailable ? 'border-green-200 hover:border-green-400' : (isPrebookable ? 'border-blue-200 hover:border-blue-400' : 'border-gray-200 opacity-70')
+                      }`}
+                    >
+                      <div className="p-6">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h3 className="text-2xl font-bold text-slate-800">Room {room.room_number}</h3>
+                            <p className="text-sm text-gray-500 mt-1">{sharing.label} {sharing.icon}</p>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            isAvailable ? 'bg-green-100 text-green-700' : (isPrebookable ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500')
+                          }`}>
+                            {isAvailable ? `${availableSlots} slot available` : (isPrebookable ? 'Pre‑bookable' : 'Full')}
+                          </span>
+                        </div>
+                        <div className="mb-4">
+                          <p className="text-3xl font-bold text-slate-800">{formatCurrency(room.monthly_rent)}</p>
+                          <p className="text-gray-400 text-sm">per month</p>
+                          <p className="text-gray-400 text-sm mt-1">Deposit: {formatCurrency(room.deposit_amount || 0)}</p>
+                        </div>
+                        <div className="mb-4">
+                          <div className="flex justify-between text-sm mb-1">
+                            <span className="text-gray-500">Occupancy</span>
+                            <span className="text-slate-600">{room.current_occupants}/{room.capacity}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div className="bg-slate-600 h-2 rounded-full transition-all duration-500" style={{ width: `${(room.current_occupants / room.capacity) * 100}%` }} />
+                          </div>
+                        </div>
+                        {isPrebookable && (
+                          <div className="mt-2 mb-2">
+                            <span className="inline-block bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full">
+                              🚪 Vacates in {roomVacate.daysLeft} days
+                            </span>
+                          </div>
+                        )}
+                        {isAvailable ? (
+                          <button onClick={() => { setSelectedRoom(room.id); setShowApplyModal(true) }} className="w-full bg-slate-800 text-white py-3 rounded-xl font-semibold hover:bg-slate-700 transition transform hover:-translate-y-0.5 duration-200">
+                            Apply Now →
+                          </button>
+                        ) : isPrebookable ? (
+                          <button onClick={() => openPrebookModal(room.id, roomVacate.vacateDate)} className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition transform hover:-translate-y-0.5 duration-200">
+                            📅 Pre‑book this room
+                          </button>
+                        ) : (
+                          <button disabled className="w-full bg-gray-300 text-gray-500 py-3 rounded-xl font-semibold cursor-not-allowed">
+                            Full – Not available
+                          </button>
+                        )}
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        isAvailable ? 'bg-green-100 text-green-700' : (isPrebookable ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500')
-                      }`}>
-                        {isAvailable ? `${availableSlots} slot available` : (isPrebookable ? 'Pre‑bookable' : 'Full')}
-                      </span>
-                    </div>
-                    <div className="mb-4">
-                      <p className="text-3xl font-bold text-slate-800">{formatCurrency(room.monthly_rent)}</p>
-                      <p className="text-gray-400 text-sm">per month</p>
-                      <p className="text-gray-400 text-sm mt-1">Deposit: {formatCurrency(room.deposit_amount || 0)}</p>
-                    </div>
-                    <div className="mb-4">
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-500">Occupancy</span>
-                        <span className="text-slate-600">{room.current_occupants}/{room.capacity}</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-slate-600 h-2 rounded-full transition-all duration-500" style={{ width: `${(room.current_occupants / room.capacity) * 100}%` }} />
-                      </div>
-                    </div>
-                    {isPrebookable && (
-                      <div className="mt-2 mb-2">
-                        <span className="inline-block bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded-full">
-                          🚪 Vacates in {roomVacate.daysLeft} days
-                        </span>
-                      </div>
-                    )}
-                    {isAvailable ? (
-                      <button onClick={() => { setSelectedRoom(room.id); setShowApplyModal(true) }} className="w-full bg-slate-800 text-white py-3 rounded-xl font-semibold hover:bg-slate-700 transition transform hover:-translate-y-0.5 duration-200">
-                        Apply Now →
-                      </button>
-                    ) : isPrebookable ? (
-                      <button onClick={() => openPrebookModal(room.id, roomVacate.vacateDate)} className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition transform hover:-translate-y-0.5 duration-200">
-                        📅 Pre‑book this room
-                      </button>
-                    ) : (
-                      <button disabled className="w-full bg-gray-300 text-gray-500 py-3 rounded-xl font-semibold cursor-not-allowed">
-                        Full – Not available
-                      </button>
-                    )}
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
+                    </motion.div>
+                  )
+                })}
+              </div>
+            )}
+          </>
         )}
 
         {/* Amenities Tab */}
@@ -983,7 +972,7 @@ export default function PropertyDetail() {
         )}
       </div>
 
-      {/* ========== MODALS ========== */}
+      {/* ========== MODALS (unchanged) ========== */}
 
       {/* Apply Modal */}
       <AnimatePresence>
@@ -1079,7 +1068,7 @@ export default function PropertyDetail() {
                   <input type="file" accept="image/*" onChange={e => handleFileChange(e, setPaymentScreenshot)} className="w-full" />
                 </div>
                 <div className="bg-yellow-50 p-3 rounded-lg text-sm text-yellow-800">
-                  After payment, your account will be created instantly and you can log in.
+                  After payment, your application is submitted. You will receive an email once the owner approves.
                 </div>
                 <button onClick={submitPayment} disabled={paymentSubmitting} className="w-full bg-slate-800 text-white py-3 rounded-xl font-semibold hover:bg-slate-700 transition disabled:opacity-50">
                   {paymentSubmitting ? 'Processing...' : 'I Have Paid – Submit'}
@@ -1200,7 +1189,7 @@ export default function PropertyDetail() {
                   <input type="file" accept="image/*" onChange={e => handleFileChange(e, setPrebookPaymentScreenshot)} className="w-full" required />
                 </div>
                 <div className="bg-yellow-50 p-3 rounded-lg text-sm text-yellow-800">
-                  After payment, upload the screenshot and submit. Owner will verify and approve your pre‑booking. A password set email will be sent to your email.
+                  After payment, upload the screenshot and submit. Owner will verify and approve your pre‑booking.
                 </div>
                 <button onClick={submitPreBookingPayment} disabled={prebookPaymentSubmitting} className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-700 transition disabled:opacity-50">
                   {prebookPaymentSubmitting ? 'Submitting...' : 'Submit Payment Proof'}
