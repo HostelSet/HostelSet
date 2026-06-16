@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import Head from 'next/head' // Import Next.js Head component
+import Head from 'next/head'
+import { useRouter } from 'next/router' // Import useRouter to check current path
 import { motion, AnimatePresence } from 'framer-motion'
 
 export default function Layout({ children }) {
+  const router = useRouter()
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -13,14 +15,18 @@ export default function Layout({ children }) {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  // Check if we are on the primary landing page or default footer subdirectory lists
+  const isHomePage = router.pathname === '/'
+
   return (
     <>
       {/* GLOBAL HEAD INJECTION FOR EMBEDDED EMOJI FAVICON */}
       <Head>
         <link
           rel="icon"
-          href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>"
+          href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🏠%3C/text%3E%3C/svg%3E"
         />
+        <title>HOSTELSET | Set Your Hostel, Simplify Life</title>
       </Head>
 
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50 flex flex-col justify-between">
@@ -61,6 +67,16 @@ export default function Layout({ children }) {
                 >
                   <span>👤</span> Login
                 </Link>
+
+                {/* DYNAMIC ACTION LINK: Show "List Property" only if we are outside home routes */}
+                {!isHomePage && (
+                  <Link 
+                    href="/owner/register-property" 
+                    className="bg-gradient-to-r from-slate-800 to-slate-700 text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center gap-2"
+                  >
+                    <span>✨</span> List Property
+                  </Link>
+                )}
               </div>
               
               {/* Mobile Menu Button */}
