@@ -24,7 +24,6 @@ export default function Login() {
       return
     }
     
-    // ✅ BUG FIXED: Removed loading[1](true) which was causing the app crash
     setLoading(true)
 
     try {
@@ -50,32 +49,50 @@ export default function Login() {
       }
 
       const result = await signInWithEmail(emailToUse, password)
+      
       if (result.success) {
-        toast.success(`Welcome back, ${result.userData.full_name}!`)
+        toast.success(`Welcome back, ${result.userData?.full_name || 'User'}!`)
         
-        // ✅ CRITICAL HISTORICAL HISTORY HOOK FIX: Swapped .push() for .replace()
-        if (result.role === 'admin') {
-          router.replace('/admin/dashboard')
-        } else if (result.role === 'owner') {
-          const { data: property } = await supabase
-            .from('properties')
-            .select('id')
-            .eq('owner_id', result.userData.id)
-            .maybeSingle()
-          if (property) {
-            router.replace('/owner/dashboard')
-          } else {
-            router.replace('/owner/register-property')
+        // Normalize role name casing to handle accidental database differences
+        const userRole = result.role?.toLowerCase()
+
+        // 1. ADMIN ROUTING
+        if (userRole === 'admin') {
+          return router.replace('/admin/dashboard')
+        } 
+        
+        // 2. OWNER ROUTING (With Isolated Fail-Safe Protections)
+        if (userRole === 'owner') {
+          try {
+            const { data: property, error: propError } = await supabase
+              .from('properties')
+              .select('id')
+              .eq('owner_id', result.userData.id)
+              .maybeSingle()
+
+            if (propError || !property) {
+              // If there's an issue checking the table or they don't have a property yet, route to registration
+              return router.replace('/owner/register-property')
+            }
+            
+            // Property found successfully
+            return router.replace('/owner/dashboard')
+          } catch (dbError) {
+            console.error('Secondary table query bypassed safely:', dbError)
+            // Safety Catch: Prevent login hanging loop if properties table fails to fetch
+            return router.replace('/owner/dashboard')
           }
-        } else {
-          router.replace('/tenant/dashboard')
-        }
+        } 
+        
+        // 3. TENANT / DEFAULT ROUTING
+        return router.replace('/tenant/dashboard')
+
       } else {
         toast.error(result.error || 'Invalid email or password')
       }
     } catch (error) {
-      console.error('Login error:', error)
-      toast.error('Login failed. Please try again.')
+      console.error('Global routing tracking error:', error)
+      toast.error('Login processed but redirect failed. Please refresh the page.')
     } finally {
       setLoading(false)
     }
