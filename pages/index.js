@@ -102,14 +102,6 @@ export default function Home() {
                 >
                   <span>📝</span> Register
                 </Link>
-
-                {/* List Property Link */}
-                <Link 
-                  href="/owner/register-property" 
-                  className="text-sm text-slate-600 hover:text-slate-900 font-bold tracking-wide transition duration-200 sm:w-full mt-2 hover:underline underline-offset-4"
-                >
-                  ✨ Are you a PG Owner? List Your Property Here
-                </Link>
               </div>
             </motion.div>
 
@@ -229,45 +221,6 @@ export default function Home() {
               </motion.div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-24 relative overflow-hidden mb-0">
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900" />
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse" />
-          <div className="absolute bottom-0 right-0 w-96 h-96 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl animate-pulse delay-1000" />
-        </div>
-        
-        <div className="relative container mx-auto px-4 md:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Ready to Transform Your Hostel Business?
-            </h2>
-            <p className="text-xl text-slate-300 mb-10 max-w-2xl mx-auto">
-              Join thousands of successful PG owners using HOSTELSET to manage their properties efficiently
-            </p>
-            <div className="flex flex-col sm:flex-row gap-5 justify-center">
-              <Link 
-                href="/register" 
-                className="group bg-white text-slate-800 px-10 py-4 rounded-full font-semibold hover:shadow-2xl transition-all duration-300 hover:scale-105 inline-flex items-center gap-2"
-              >
-                Start Free Trial
-                <span className="group-hover:translate-x-1 transition">→</span>
-              </Link>
-              <Link 
-                href="/owner/register-property" 
-                className="border-2 border-white/30 text-white px-10 py-4 rounded-full font-semibold hover:bg-white/10 transition-all duration-300 hover:scale-105 inline-flex items-center gap-2 backdrop-blur-sm"
-              >
-                List Your Property
-              </Link>
-            </div>
-          </motion.div>
         </div>
       </section>
     </div>
