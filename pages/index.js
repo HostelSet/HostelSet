@@ -30,11 +30,6 @@ export default function Home() {
 
   return (
     <div className="bg-transparent">
-      {/* 
-        NOTE: The fixed Navbar and Footer have been removed from this file 
-        because they are now automatically managed by your global Layout wrapper!
-      */}
-
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-slate-50 via-white to-gray-100" />
@@ -78,22 +73,42 @@ export default function Home() {
                 Set Your Hostel, Simplify Life. India's most trusted platform for PG and hostel management with modern tools and real-time insights.
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-5 justify-center mb-16">
+              {/* UPDATED ACTIONS SECTION LINKED UNDER THE MAIN HERO CONTENT */}
+              <div className="flex flex-col sm:flex-row flex-wrap gap-4 justify-center items-center max-w-3xl mx-auto mb-16">
+                {/* Browse Properties Button - Large Solid Call to Action */}
                 <Link 
-                  href="/register" 
-                  className="group relative bg-gradient-to-r from-slate-800 to-slate-700 text-white px-10 py-4 rounded-full font-semibold hover:shadow-2xl transition-all duration-300 hover:scale-105 overflow-hidden"
+                  href="/properties" 
+                  className="group relative bg-gradient-to-r from-slate-800 to-slate-700 text-white px-8 py-4 rounded-full font-semibold hover:shadow-2xl transition-all duration-300 hover:scale-105 overflow-hidden flex items-center gap-2 min-w-[200px] justify-center"
                 >
                   <span className="relative z-10 flex items-center gap-2">
-                    Get Started Free
-                    <span className="group-hover:translate-x-1 transition">→</span>
+                    <span>🔍</span> Browse Properties
+                    <span className="group-hover:translate-x-1 transition duration-200">→</span>
                   </span>
                   <div className="absolute inset-0 bg-gradient-to-r from-slate-700 to-slate-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </Link>
+
+                {/* Login Button - Semi-Transparent Outline pill */}
+                <Link 
+                  href="/login" 
+                  className="bg-white/80 backdrop-blur-sm border-2 border-gray-300 text-slate-700 px-8 py-3.5 rounded-full font-semibold hover:border-slate-800 hover:bg-white transition-all duration-300 hover:scale-105 flex items-center gap-2 min-w-[160px] justify-center shadow-sm"
+                >
+                  <span>👤</span> Login
+                </Link>
+
+                {/* Register Button - Transparent Outline pill */}
+                <Link 
+                  href="/register" 
+                  className="bg-white/80 backdrop-blur-sm border-2 border-gray-300 text-slate-700 px-8 py-3.5 rounded-full font-semibold hover:border-slate-800 hover:bg-white transition-all duration-300 hover:scale-105 flex items-center gap-2 min-w-[160px] justify-center shadow-sm"
+                >
+                  <span>📝</span> Register
+                </Link>
+
+                {/* List Property Link */}
                 <Link 
                   href="/owner/register-property" 
-                  className="border-2 border-gray-300 text-gray-700 px-10 py-4 rounded-full font-semibold hover:border-slate-800 hover:bg-white/50 transition-all duration-300 hover:scale-105 backdrop-blur-sm"
+                  className="text-sm text-slate-600 hover:text-slate-900 font-bold tracking-wide transition duration-200 sm:w-full mt-2 hover:underline underline-offset-4"
                 >
-                  List Your Property
+                  ✨ Are you a PG Owner? List Your Property Here
                 </Link>
               </div>
             </motion.div>
@@ -151,7 +166,6 @@ export default function Home() {
                 key={index}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
                 viewport={{ once: true }}
                 whileHover={{ y: -10, scale: 1.02 }}
                 className="group relative bg-white rounded-2xl p-8 border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden"
