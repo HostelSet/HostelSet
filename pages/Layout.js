@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Head from 'next/head'
-import { useRouter } from 'next/router' // Import useRouter to check current path
+import { useRouter } from 'next/router'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export default function Layout({ children }) {
@@ -15,7 +15,6 @@ export default function Layout({ children }) {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Check if we are on the primary landing page or default footer subdirectory lists
   const isHomePage = router.pathname === '/'
 
   return (
@@ -68,7 +67,6 @@ export default function Layout({ children }) {
                   <span>👤</span> Login
                 </Link>
 
-                {/* DYNAMIC ACTION LINK: Show "List Property" only if we are outside home routes */}
                 {!isHomePage && (
                   <Link 
                     href="/owner/register-property" 
@@ -151,7 +149,8 @@ export default function Layout({ children }) {
                 <h4 className="font-bold text-slate-800 mb-6 text-lg">Product</h4>
                 <ul className="space-y-3 text-gray-500">
                   <li><Link href="/footers/features" className="hover:text-slate-800 transition">Features</Link></li>
-                  <li><Link href="/owner/register-property" className="hover:text-slate-800 transition">List Property</Link></li>
+                  {/* UPDATED: Removed List Property and added Browse Properties */}
+                  <li><Link href="/properties" className="hover:text-slate-800 transition">Browse Properties</Link></li>
                   <li><Link href="/login" className="hover:text-slate-800 transition">Login</Link></li>
                   <li><Link href="/register" className="hover:text-slate-800 transition">Register</Link></li>
                 </ul>
