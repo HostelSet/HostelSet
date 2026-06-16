@@ -23,7 +23,8 @@ export default function Login() {
       toast.error('Please enter email/phone and password')
       return
     }
-    loading[1](true) // Fixed to safely toggle state hooks uniform
+    
+    // ✅ BUG FIXED: Removed loading[1](true) which was causing the app crash
     setLoading(true)
 
     try {
@@ -53,7 +54,6 @@ export default function Login() {
         toast.success(`Welcome back, ${result.userData.full_name}!`)
         
         // ✅ CRITICAL HISTORICAL HISTORY HOOK FIX: Swapped .push() for .replace()
-        // This clears out auth page states so hitting "back" drops users out cleanly.
         if (result.role === 'admin') {
           router.replace('/admin/dashboard')
         } else if (result.role === 'owner') {
@@ -98,7 +98,6 @@ export default function Login() {
   }
 
   return (
-    /* CRITICAL COLLISION FIX: Added pt-24 md:pt-32 padding constraints to match fixed header profiles cleanly */
     <div className="min-h-screen flex items-center justify-center p-4 pt-24 md:pt-32 pb-16 bg-gradient-to-br from-slate-50 via-white to-gray-50">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
