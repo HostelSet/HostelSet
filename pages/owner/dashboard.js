@@ -123,32 +123,69 @@ export default function OwnerDashboard() {
       setProperty(propertyData)
       setMembershipActive(propertyData.membership_active)
       
-      // Load Rooms, Tenants, and Notices
+      // 1. Load Rooms, Tenants, and Notices
       const { data: roomsData } = await supabase.from('rooms').select('*').eq('property_id', propertyData.id).order('room_number')
-      setRooms(roomsData || [])
+      const currentRooms = roomsData || []
+      setRooms(currentRooms)
       
       const { data: tenantsData } = await supabase.from('tenants').select('*').eq('property_id', propertyData.id)
-      setTenants((tenantsData || []).map(t => ({ ...t, dueStatus: calculateRentDueStatus(t) })))
+      const currentTenants = tenantsData || []
+      setTenants(currentTenants.map(t => ({ ...t, dueStatus: calculateRentDueStatus(t) })))
 
       const { data: noticesData } = await supabase.from('notices').select('*').eq('property_id', propertyData.id).order('created_at', { ascending: false })
       setNotices(noticesData || [])
 
-      // 💳 Fetch payment history logs from Supabase
-      if (tenantsData && tenantsData.length > 0) {
-        const tenantIds = tenantsData.map(t => t.id)
-        
-        const { data: paymentsData, error: paymentsError } = await supabase
+      // 2. Fetch payment history logs from Supabase
+      let currentPayments = []
+      if (currentTenants.length > 0) {
+        const tenantIds = currentTenants.map(t => t.id)
+        const { data: paymentsData } = await supabase
           .from('payment_history')
           .select('*')
           .in('tenant_id', tenantIds)
           .order('payment_date', { ascending: false })
-
-        if (!paymentsError) {
-          setAllPayments(paymentsData || [])
-        }
+        
+        currentPayments = paymentsData || []
+        setAllPayments(currentPayments)
       } else {
         setAllPayments([])
       }
+
+      // ====================================================================
+      // 📊 ✅ FIX: Calculate and update stats counters dynamically
+      // ====================================================================
+      const totalRooms = currentRooms.length
+      const occupied = currentRooms.filter(r => r.current_occupants > 0 || r.status === 'occupied').length
+      const vacant = totalRooms - occupied
+
+      // Calculate collection math from payments
+      const currentMonthStr = new Date().toISOString().slice(0, 7) // Format: "YYYY-MM"
+      
+      const totalCollected = currentPayments
+        .filter(p => p.status === 'success')
+        .reduce((sum, p) => sum + (p.amount || 0), 0)
+
+      const monthlyIncome = currentPayments
+        .filter(p => p.status === 'success' && p.payment_date?.startsWith(currentMonthStr))
+        .reduce((sum, p) => sum + (p.amount || 0), 0)
+
+      // Calculate pending balances from active tenants
+      const pendingAmount = currentTenants
+        .reduce((sum, t) => sum + (t.pending_amount || 0), 0)
+
+      setStats(prevStats => ({
+        ...prevStats,
+        totalRooms,
+        occupied,
+        vacant,
+        totalCollected,
+        monthlyIncome,
+        pendingAmount,
+        // Fallback or maintain other counters if tracked elsewhere
+        totalComplaints: complaints?.length || 0,
+        pendingVacate: vacateRequests?.length || 0
+      }))
+      // ====================================================================
 
       if (propertyData.membership_expiry) {
         const expiryDate = new Date(propertyData.membership_expiry)
