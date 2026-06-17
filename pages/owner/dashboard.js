@@ -133,6 +133,27 @@ export default function OwnerDashboard() {
       const { data: noticesData } = await supabase.from('notices').select('*').eq('property_id', propertyData.id).order('created_at', { ascending: false })
       setNotices(noticesData || [])
 
+      // ====================================================================
+      // 💳 ✅ MISSING FIX: Fetch payment history logs from Supabase
+      // ====================================================================
+      if (tenantsData && tenantsData.length > 0) {
+        // Collect all your tenant IDs into an array list filter matching
+        const tenantIds = tenantsData.map(t => t.id)
+        
+        const { data: paymentsData, error: paymentsError } = await supabase
+          .from('payment_history')
+          .select('*')
+          .in('tenant_id', tenantIds)
+          .order('payment_date', { ascending: false })
+
+        if (!paymentsError) {
+          setAllPayments(paymentsData || [])
+        }
+      } else {
+        setAllPayments([])
+      }
+      // ====================================================================
+
       if (propertyData.membership_expiry) {
         const expiryDate = new Date(propertyData.membership_expiry)
         const today = new Date()
