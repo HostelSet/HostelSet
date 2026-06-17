@@ -6,18 +6,19 @@ import { cleanPhoneNumber } from '../../lib/utils'
 import toast from 'react-hot-toast'
 
 // 📦 Core UI Layout Component Blocks
-import DashboardStats from './_components/DashboardStats'
-import DashboardTabs from './_components/DashboardTabs'
-import DashboardAlerts from './_components/DashboardAlerts'
-import ModalsContainer from './_components/ModalsContainer'
+// 📦 Core UI Layout Component Blocks
+import DashboardStats from '../../components/DashboardStats'
+import DashboardTabs from '../../components/DashboardTabs'
+import DashboardAlerts from '../../components/DashboardAlerts'
+import ModalsContainer from '../../components/ModalsContainer'
 
 // 📑 Specialized Navigation View Panel Tabs
-import OverviewTab from './_components/OverviewTab'
-import RoomsTab from './_components/RoomsTab'
-import TenantsTab from './_components/TenantsTab'
-import RentPaymentsTab from './_components/RentPaymentsTab'
-import { PaymentHistoryTab, PreBookingsTab, ApplicationsTab } from './_components/OtherHistoryTabs'
-import { ComplaintsTab, VacateTab, RoomChangeTab } from './_components/RequestOperationsTabs'
+import OverviewTab from '../../components/OverviewTab'
+import RoomsTab from '../../components/RoomsTab'
+import TenantsTab from '../../components/TenantsTab'
+import RentPaymentsTab from '../../components/RentPaymentsTab'
+import { PaymentHistoryTab, PreBookingsTab, ApplicationsTab } from '../../components/OtherHistoryTabs'
+import { ComplaintsTab, VacateTab, RoomChangeTab } from '../../components/RequestOperationsTabs'
 
 export default function OwnerDashboard() {
   const router = useRouter()
