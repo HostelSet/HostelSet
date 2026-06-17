@@ -1,23 +1,23 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/router'
-// ✅ FIX: Corrected relative parent path directory mappings for dashboard component file
 import { supabase } from '../../lib/supabase'
-import { calculateRentDueStatus, cleanPhoneNumber } from '../../lib/utils'
+// ✅ FIX: Removed the non-existent 'calculateRentDueStatus' from this utility import string
+import { cleanPhoneNumber } from '../../lib/utils'
 import toast from 'react-hot-toast'
 
 // 📦 Core UI Layout Component Blocks
-import DashboardStats from './components/DashboardStats'
-import DashboardTabs from './components/DashboardTabs'
-import DashboardAlerts from './components/DashboardAlerts'
-import ModalsContainer from './components/ModalsContainer'
+import DashboardStats from './_components/DashboardStats'
+import DashboardTabs from './_components/DashboardTabs'
+import DashboardAlerts from './_components/DashboardAlerts'
+import ModalsContainer from './_components/ModalsContainer'
 
 // 📑 Specialized Navigation View Panel Tabs
-import OverviewTab from './components/OverviewTab'
-import RoomsTab from './components/RoomsTab'
-import TenantsTab from './components/TenantsTab'
-import RentPaymentsTab from './components/RentPaymentsTab'
-import { PaymentHistoryTab, PreBookingsTab, ApplicationsTab } from './components/OtherHistoryTabs'
-import { ComplaintsTab, VacateTab, RoomChangeTab } from './components/RequestOperationsTabs'
+import OverviewTab from './_components/OverviewTab'
+import RoomsTab from './_components/RoomsTab'
+import TenantsTab from './_components/TenantsTab'
+import RentPaymentsTab from './_components/RentPaymentsTab'
+import { PaymentHistoryTab, PreBookingsTab, ApplicationsTab } from './_components/OtherHistoryTabs'
+import { ComplaintsTab, VacateTab, RoomChangeTab } from './_components/RequestOperationsTabs'
 
 export default function OwnerDashboard() {
   const router = useRouter()
@@ -92,6 +92,12 @@ export default function OwnerDashboard() {
     { value: 'five', label: 'Five Sharing', capacity: 5, icon: '👥👥👤', price: 6000 },
   ]
 
+  // ✅ FIX: Added local implementation right here to prevent compilation white-screens
+  const calculateRentDueStatus = (tenant) => {
+    if (!tenant || !tenant.pending_amount) return 'paid'
+    return tenant.pending_amount > 0 ? 'overdue' : 'paid'
+  }
+
   // 🚀 System Initialization & Realtime Long Polling Sync Timers
   useEffect(() => {
     const init = async () => {
@@ -117,7 +123,7 @@ export default function OwnerDashboard() {
       setProperty(propertyData)
       setMembershipActive(propertyData.membership_active)
       
-      // 👥 Load Rooms, Tenants, and Notices
+      // Load Rooms, Tenants, and Notices
       const { data: roomsData } = await supabase.from('rooms').select('*').eq('property_id', propertyData.id).order('room_number')
       setRooms(roomsData || [])
       
@@ -127,7 +133,6 @@ export default function OwnerDashboard() {
       const { data: noticesData } = await supabase.from('notices').select('*').eq('property_id', propertyData.id).order('created_at', { ascending: false })
       setNotices(noticesData || [])
 
-      // 📢 Calculate parameters quietly but keep the banner array completely clear
       if (propertyData.membership_expiry) {
         const expiryDate = new Date(propertyData.membership_expiry)
         const today = new Date()
@@ -143,8 +148,7 @@ export default function OwnerDashboard() {
     setLoading(false)
   }
 
-  // 📝 Master Operation Handler Actions
-
+  // Operation Handlers...
   const addTenant = async () => {
     if (isSubmitting) return
     if (!formData.name || !formData.phone || !formData.email || !formData.rent_amount || !formData.room_id) {
@@ -205,7 +209,6 @@ export default function OwnerDashboard() {
 
   const postNotice = async () => {
     if (!noticeForm.title || !noticeForm.content) return toast.error('Complete notice content fields')
-    
     setIsSubmitting(true)
     try {
       const { error } = await supabase.from('notices').insert({ 
@@ -215,9 +218,7 @@ export default function OwnerDashboard() {
         type: noticeForm.type, 
         is_urgent: noticeForm.is_urgent 
       })
-
       if (error) throw error
-
       toast.success('Notice published to community dashboard')
       setNoticeForm({ title: '', content: '', type: 'general', is_urgent: false }) 
       setShowNoticeModal(false)
@@ -231,16 +232,10 @@ export default function OwnerDashboard() {
 
   const deleteNotice = async (noticeId) => {
     if (!confirm('Are you sure you want to permanently delete this notice?')) return
-    
     setIsSubmitting(true)
     try {
-      const { error } = await supabase
-        .from('notices')
-        .delete()
-        .eq('id', noticeId)
-
+      const { error } = await supabase.from('notices').delete().eq('id', noticeId)
       if (error) throw error
-
       toast.success('Notice deleted successfully')
       await loadData()
     } catch (err) {
@@ -288,7 +283,6 @@ export default function OwnerDashboard() {
     <div className="min-h-screen bg-slate-50/50">
       <DashboardAlerts membershipActive={membershipActive} daysLeft={daysLeft} membershipExpiry={membershipExpiry} stats={stats} alerts={alerts} handleAlertClick={alert => setActiveTab(alert.linkTab)} removeAlert={id => null} setActiveTab={setActiveTab} setShowMembershipModal={setShowMembershipModal} />
 
-      {/* 🧭 Top Level Navbar Branding Layout */}
       <nav className="bg-white border-b border-gray-100 sticky top-0 z-40 px-6 py-4 shadow-sm">
         <div className="container mx-auto flex flex-wrap justify-between items-center gap-4">
           <div className="flex items-center gap-3">
@@ -310,7 +304,6 @@ export default function OwnerDashboard() {
       <div className="container mx-auto px-4 py-8">
         <DashboardStats stats={stats} />
         
-        {/* 🛠️ Action Controls Quick Toolbar Grid Bar */}
         <div className="flex flex-wrap gap-3 mb-8">
           <button onClick={() => setShowAddModal(true)} className="px-5 py-2 rounded-full text-sm font-semibold transition bg-slate-800 text-white hover:bg-slate-700 shadow-sm">+ Add Tenant</button>
           <button onClick={() => setShowRoomModal(true)} className="border-2 border-slate-300 text-slate-700 px-5 py-2 rounded-full text-sm font-semibold transition hover:bg-slate-50 shadow-sm">+ Add Room</button>
@@ -326,7 +319,6 @@ export default function OwnerDashboard() {
           {activeTab === 'tenants' && <TenantsTab filteredTenants={tenants} calculateRentDueStatus={calculateRentDueStatus} getRoomNumberById={getRoomNumberById} vacateRequests={vacateRequests} isSubmitting={isSubmitting} setConfirmingTenant={setConfirmingTenant} setShowPaymentConfirmModal={setShowPaymentConfirmModal} setSelectedTenant={setSelectedTenant} setShowPaymentModal={setShowPaymentModal} fetchTenantPayments={id => null} fetchTenantApplication={id => null} setTenantToDelete={setTenantToDelete} setShowConfirmDeleteModal={setShowConfirmDeleteModal} />}
           {activeTab === 'rent-payments' && <RentPaymentsTab pendingRentPayments={pendingRentPayments} isSubmitting={isSubmitting} setScreenshotUrl={setScreenshotUrl} setShowScreenshotModal={setShowScreenshotModal} confirmRentPayment={(id, tid, amt) => null} rejectRentPayment={id => null} />}
           
-          {/* ==================== 💳 PAYMENT HISTORY VIEW ROUTER ==================== */}
           {activeTab === 'payment-history' && (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
               {allPayments?.length === 0 ? (
@@ -343,10 +335,8 @@ export default function OwnerDashboard() {
             </div>
           )}
 
-          {/* ==================== 📋 PRE-BOOKINGS VIEW ROUTER ==================== */}
           {activeTab === 'pre-bookings' && <PreBookingsTab preBookings={preBookings} isSubmitting={isSubmitting} setScreenshotUrl={setScreenshotUrl} setShowScreenshotModal={setShowScreenshotModal} approvePreBooking={(id, rid, uid) => null} rejectPreBooking={id => null} />}
           
-          {/* ==================== 🔧 COMPLAINTS VIEW ROUTER ==================== */}
           {activeTab === 'complaints' && (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
               {complaints?.length === 0 ? (
@@ -363,7 +353,6 @@ export default function OwnerDashboard() {
             </div>
           )}
           
-          {/* ==================== 🚪 VACATE REQUESTS VIEW ROUTER ==================== */}
           {activeTab === 'vacate' && (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
               {vacateRequests?.length === 0 ? (
@@ -380,7 +369,6 @@ export default function OwnerDashboard() {
             </div>
           )}
 
-          {/* ==================== 🔄 ROOM CHANGE REQUESTS VIEW ROUTER ==================== */}
           {activeTab === 'room-change' && (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
               {roomChangeRequests?.length === 0 ? (
@@ -397,10 +385,8 @@ export default function OwnerDashboard() {
             </div>
           )}
 
-          {/* ==================== 📋 APPLICATIONS VIEW ROUTER ==================== */}
           {activeTab === 'applications' && <ApplicationsTab applications={applications} isSubmitting={isSubmitting} setSelectedApplication={setSelectedApplication} setShowApplicationDetailModal={setShowApplicationDetailModal} approveApplication={approveApplication} />}
           
-          {/* ==================== 📢 PUBLISHED NOTICES VIEW ROUTER ==================== */}
           {activeTab === 'notices' && (
             <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
               {notices.length === 0 ? (
@@ -423,8 +409,6 @@ export default function OwnerDashboard() {
                           <p className="text-sm text-slate-600 whitespace-pre-wrap">{notice.content}</p>
                           <div className="mt-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Type: {notice.type}</div>
                         </div>
-
-                        {/* 🗑️ Clickable Action Delete Button Control Layer */}
                         <button 
                           onClick={() => deleteNotice(notice.id)}
                           disabled={isSubmitting}
