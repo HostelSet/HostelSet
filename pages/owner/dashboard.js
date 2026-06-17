@@ -5,14 +5,13 @@ import { supabase } from '../../lib/supabase'
 import { cleanPhoneNumber } from '../../lib/utils'
 import toast from 'react-hot-toast'
 
-// 📦 Core UI Layout Component Blocks
-// 📦 Core UI Layout Component Blocks
+// 📦 Core UI Layout Component Blocks (Updated Paths to Root Component Directory)
 import DashboardStats from '../../components/DashboardStats'
 import DashboardTabs from '../../components/DashboardTabs'
 import DashboardAlerts from '../../components/DashboardAlerts'
 import ModalsContainer from '../../components/ModalsContainer'
 
-// 📑 Specialized Navigation View Panel Tabs
+// 📑 Specialized Navigation View Panel Tabs (Updated Paths to Root Component Directory)
 import OverviewTab from '../../components/OverviewTab'
 import RoomsTab from '../../components/RoomsTab'
 import TenantsTab from '../../components/TenantsTab'
@@ -93,7 +92,7 @@ export default function OwnerDashboard() {
     { value: 'five', label: 'Five Sharing', capacity: 5, icon: '👥👥👤', price: 6000 },
   ]
 
-  // ✅ FIX: Added local implementation right here to prevent compilation white-screens
+  // ✅ Local implementation to prevent compilation errors
   const calculateRentDueStatus = (tenant) => {
     if (!tenant || !tenant.pending_amount) return 'paid'
     return tenant.pending_amount > 0 ? 'overdue' : 'paid'
@@ -134,11 +133,8 @@ export default function OwnerDashboard() {
       const { data: noticesData } = await supabase.from('notices').select('*').eq('property_id', propertyData.id).order('created_at', { ascending: false })
       setNotices(noticesData || [])
 
-      // ====================================================================
-      // 💳 ✅ MISSING FIX: Fetch payment history logs from Supabase
-      // ====================================================================
+      // 💳 Fetch payment history logs from Supabase
       if (tenantsData && tenantsData.length > 0) {
-        // Collect all your tenant IDs into an array list filter matching
         const tenantIds = tenantsData.map(t => t.id)
         
         const { data: paymentsData, error: paymentsError } = await supabase
@@ -153,7 +149,6 @@ export default function OwnerDashboard() {
       } else {
         setAllPayments([])
       }
-      // ====================================================================
 
       if (propertyData.membership_expiry) {
         const expiryDate = new Date(propertyData.membership_expiry)

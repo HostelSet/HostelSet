@@ -1,4 +1,4 @@
-import { formatCurrency, formatDate } from '../../../lib/utils'
+import { formatCurrency, formatDate } from '../lib/utils'
 
 export default function OverviewTab({ tenants, complaints, calculateRentDueStatus, getRoomNumberById, setSelectedComplaint, setShowComplaintResponseModal, isSubmitting, stats, setActiveTab }) {
   return (

@@ -1,4 +1,4 @@
-import { formatCurrency, formatDate } from '../../../lib/utils'
+import { formatCurrency, formatDate } from '../lib/utils'
 
 export function ComplaintsTab({ complaints, isSubmitting, setSelectedComplaint, setShowComplaintResponseModal, resolveComplaint }) {
   return (

@@ -1,4 +1,4 @@
-import { formatCurrency, formatDate } from '../../../lib/utils'
+import { formatCurrency, formatDate } from '../lib/utils'
 
 export default function RentPaymentsTab({ pendingRentPayments, isSubmitting, setScreenshotUrl, setShowScreenshotModal, confirmRentPayment, rejectRentPayment }) {
   return (

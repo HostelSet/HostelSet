@@ -1,4 +1,4 @@
-import { formatCurrency, getSharingDetails } from '../../../lib/utils'
+import { formatCurrency, getSharingDetails } from '../lib/utils'
 
 export default function RoomsTab({ rooms, getUpcomingVacateForRoom, getTenantsInRoom, roomMonthlyIncome, deleteRoom, isSubmitting, setSelectedRoom, setShowRoomDetailsModal }) {
   return (
